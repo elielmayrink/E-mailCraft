@@ -1,2 +1,4 @@
 task.md
 /backend/config.env
+/backend/credentials
+/task-email-agent.md

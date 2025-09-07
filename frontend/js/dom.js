@@ -16,6 +16,8 @@ const DOM = {
   // UI elements
   loadingOverlay: null,
   toastContainer: null,
+  gmailAuthBtn: null,
+  gmailRefreshBtn: null,
 
   // Initialize DOM elements
   init() {
@@ -27,6 +29,8 @@ const DOM = {
     this.resultsSection = document.getElementById("resultsSection");
     this.loadingOverlay = document.getElementById("loadingOverlay");
     this.toastContainer = document.getElementById("toastContainer");
+    this.gmailAuthBtn = document.getElementById("gmailAuthBtn");
+    this.gmailRefreshBtn = document.getElementById("gmailRefreshBtn");
 
     console.log("🔍 Verificando elementos DOM:");
     console.log("📝 emailText:", this.emailText);
@@ -37,6 +41,8 @@ const DOM = {
     console.log("📊 resultsSection:", this.resultsSection);
     console.log("⏳ loadingOverlay:", this.loadingOverlay);
     console.log("🔔 toastContainer:", this.toastContainer);
+    console.log("📧 gmailAuthBtn:", this.gmailAuthBtn);
+    console.log("📧 gmailRefreshBtn:", this.gmailRefreshBtn);
 
     console.log("✅ Elementos DOM inicializados");
   },

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from models.classifier import EmailClassifier
 from models.response_generator import ResponseGenerator
 from utils.text_processor import TextProcessor
+from integrations.gmail_service import GmailService
 
 # Carregar variáveis de ambiente do arquivo config.env
 load_dotenv('config.env')
@@ -26,10 +27,11 @@ app.add_middleware(
 classifier = None
 response_generator = None
 text_processor = None
+gmail_service = None
 
 def get_components():
     """Inicializa os componentes se necessário"""
-    global classifier, response_generator, text_processor
+    global classifier, response_generator, text_processor, gmail_service
     if classifier is None:
         classifier = EmailClassifier()
     if response_generator is None:
@@ -39,6 +41,8 @@ def get_components():
             classifier.set_gemini_client(response_generator.gemini_client)
     if text_processor is None:
         text_processor = TextProcessor()
+    if gmail_service is None:
+        gmail_service = GmailService()
     return classifier, response_generator, text_processor
 
 @app.get("/", response_class=HTMLResponse)
@@ -256,6 +260,104 @@ async def configure_ai(data: dict):
 async def health_check():
     """Endpoint de health check"""
     return {"status": "healthy", "message": "API funcionando corretamente"}
+
+
+@app.get("/gmail/preview")
+async def gmail_preview(limit: int = 5):
+    try:
+        global gmail_service
+        if gmail_service is None:
+            gmail_service = GmailService()
+        if not gmail_service.ensure_authenticated():
+            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Coloque o client_secret.json em backend/credentials e tente novamente.")
+
+        classifier, response_generator, text_processor = get_components()
+        messages = gmail_service.list_unread_messages(max_results=limit)
+        previews = []
+        for m in messages:
+            full = gmail_service.get_message_full(m["id"])
+            if not full:
+                continue
+            fields = gmail_service.extract_email_fields(full)
+            processed = text_processor.process(fields["text"]) if fields["text"] else ""
+            cls = classifier.predict(processed)
+            reply = response_generator.generate(cls["category"], processed)
+            previews.append({
+                "id": fields["id"],
+                "threadId": fields["threadId"],
+                "from": fields["from"],
+                "subject": fields["subject"],
+                "snippet": processed[:280],
+                "category": cls["category"],
+                "confidence": cls["confidence"],
+                "method": cls["method"],
+                "model_info": cls["model_info"],
+                "suggested_response": reply,
+            })
+        return {"items": previews, "count": len(previews)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        if msg.startswith("OAUTH_LINK::"):
+            return {"auth_url": msg.replace("OAUTH_LINK::", "", 1)}
+        raise HTTPException(status_code=500, detail=f"Erro no preview do Gmail: {msg}")
+
+
+@app.post("/gmail/send")
+async def gmail_send(data: dict):
+    try:
+        global gmail_service
+        if gmail_service is None:
+            gmail_service = GmailService()
+        if not gmail_service.ensure_authenticated():
+            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Coloque o client_secret.json em backend/credentials e tente novamente.")
+
+        to_email = data.get("to")
+        subject = data.get("subject", "")
+        body = data.get("body", "")
+        thread_id = data.get("threadId")
+        if not to_email or not body:
+            raise HTTPException(status_code=400, detail="Campos obrigatórios: to, body")
+
+        ok = gmail_service.send_reply(to_email=to_email, subject=subject, body=body, thread_id=thread_id)
+        if ok:
+            return {"status": "sent"}
+        else:
+            raise HTTPException(status_code=500, detail="Falha ao enviar email")
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        if msg.startswith("OAUTH_LINK::"):
+            return {"auth_url": msg.replace("OAUTH_LINK::", "", 1)}
+        raise HTTPException(status_code=500, detail=f"Erro no envio do Gmail: {msg}")
+
+@app.post("/gmail/mark-read")
+async def gmail_mark_read(data: dict):
+    try:
+        global gmail_service
+        if gmail_service is None:
+            gmail_service = GmailService()
+        if not gmail_service.ensure_authenticated():
+            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Coloque o client_secret.json em backend/credentials e tente novamente.")
+
+        message_id = data.get("messageId")
+        if not message_id:
+            raise HTTPException(status_code=400, detail="Campo obrigatório: messageId")
+
+        ok = gmail_service.mark_as_read(message_id)
+        if ok:
+            return {"status": "marked_as_read"}
+        else:
+            raise HTTPException(status_code=500, detail="Falha ao marcar como lido")
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        if msg.startswith("OAUTH_LINK::"):
+            return {"auth_url": msg.replace("OAUTH_LINK::", "", 1)}
+        raise HTTPException(status_code=500, detail=f"Erro ao marcar como lido: {msg}")
 
 if __name__ == "__main__":
     import uvicorn

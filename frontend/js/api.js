@@ -34,6 +34,49 @@ const API = {
     }
   },
 
+
+  // Gmail: preview não lidos
+  async gmailPreview(limit = 5) {
+    const url = `${window.CONFIG.API_BASE_URL}/gmail/preview?limit=${limit}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.auth_url) {
+      return { auth_url: data.auth_url };
+    }
+    return data;
+  },
+
+  // Gmail: enviar resposta
+  async gmailSend({ to, subject, body, threadId }) {
+    const response = await fetch(`${window.CONFIG.API_BASE_URL}/gmail/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, subject, body, threadId }),
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(err);
+    }
+    return await response.json();
+  },
+
+  // Gmail: marcar como lido
+  async gmailMarkRead(messageId) {
+    const response = await fetch(
+      `${window.CONFIG.API_BASE_URL}/gmail/mark-read`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(err);
+    }
+    return await response.json();
+  },
+
   // Testar IA
   async testAI() {
     try {

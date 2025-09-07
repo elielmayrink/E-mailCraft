@@ -67,6 +67,45 @@ const App = {
     console.log("✅ Event listener para keyboard shortcuts adicionado");
 
     console.log("✅ Todos os event listeners inicializados");
+
+    // Gmail buttons
+    if (window.DOM.gmailAuthBtn) {
+      window.DOM.gmailAuthBtn.addEventListener("click", async () => {
+        try {
+          window.UI.showLoading("Conectando ao Gmail...");
+          const data = await window.API.gmailPreview(5);
+          window.UI.hideLoading();
+          window.UI.renderGmailList(data);
+          if (!data.auth_url && data.items?.length) {
+            window.UI.showToast("Emails carregados do Gmail!", "success");
+          }
+        } catch (err) {
+          window.UI.hideLoading();
+          window.UI.showToast(
+            "Erro ao conectar Gmail: " + err.message,
+            "error"
+          );
+        }
+      });
+    }
+
+    if (window.DOM.gmailRefreshBtn) {
+      window.DOM.gmailRefreshBtn.addEventListener("click", async () => {
+        try {
+          window.UI.showLoading("Atualizando emails...");
+          const data = await window.API.gmailPreview(5);
+          window.UI.hideLoading();
+          window.UI.renderGmailList(data);
+        } catch (err) {
+          window.UI.hideLoading();
+          window.UI.showToast(
+            "Erro ao atualizar Gmail: " + err.message,
+            "error"
+          );
+        }
+      });
+    }
+
   },
 
   // Validar formulário

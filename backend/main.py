@@ -1,13 +1,18 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 from models.classifier import EmailClassifier
 from models.response_generator import ResponseGenerator
 from utils.text_processor import TextProcessor
 from integrations.gmail_service import GmailService
+from database import get_db, create_tables
+from auth.firebase_auth import get_current_user, verify_firebase_token
+from models.user import User
 
 # Carregar variáveis de ambiente do arquivo config.env
 load_dotenv('config.env')
@@ -22,6 +27,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Inicializar banco de dados
+create_tables()
 
 # Inicializar componentes (será feito nas funções)
 classifier = None
@@ -44,6 +52,241 @@ def get_components():
     if gmail_service is None:
         gmail_service = GmailService()
     return classifier, response_generator, text_processor
+
+# ==================== ENDPOINTS DE AUTENTICAÇÃO ====================
+
+@app.get("/auth/me")
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Obter informações do usuário atual"""
+    return {
+        "user": current_user.to_dict(),
+        "status": "authenticated"
+    }
+
+@app.post("/auth/verify-token")
+async def verify_token(
+    token_data: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db)
+):
+    """Verificar token Firebase e criar/atualizar usuário no banco"""
+    try:
+        from auth.firebase_auth import get_user_by_firebase_uid, create_user_from_firebase_token
+        
+        # Buscar usuário existente
+        user = get_user_by_firebase_uid(token_data.get("uid"), db)
+        
+        if not user:
+            # Criar novo usuário
+            user = create_user_from_firebase_token(token_data, db)
+        else:
+            # Atualizar último login
+            user.last_login = datetime.utcnow()
+            db.commit()
+            db.refresh(user)
+        
+        return {
+            "valid": True,
+            "user": {
+                "uid": token_data.get("uid"),
+                "email": token_data.get("email"),
+                "name": token_data.get("name"),
+                "picture": token_data.get("picture")
+            },
+            "db_user": user.to_dict()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar usuário: {str(e)}")
+
+@app.post("/gmail/connect")
+async def connect_gmail(
+    credentials: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Conectar Gmail do usuário"""
+    try:
+        from auth.firebase_auth import update_user_gmail_credentials
+        update_user_gmail_credentials(current_user, credentials, db)
+        return {
+            "status": "connected",
+            "message": "Gmail conectado com sucesso"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao conectar Gmail: {str(e)}")
+
+@app.post("/gmail/disconnect")
+async def disconnect_gmail(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Desconectar Gmail do usuário"""
+    try:
+        from auth.firebase_auth import disconnect_user_gmail
+        disconnect_user_gmail(current_user, db)
+        return {
+            "status": "disconnected",
+            "message": "Gmail desconectado com sucesso"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao desconectar Gmail: {str(e)}")
+
+@app.get("/gmail/status")
+async def gmail_status(current_user: User = Depends(get_current_user)):
+    """Verificar status da conexão Gmail"""
+    return {
+        "connected": current_user.gmail_connected,
+        "last_sync": current_user.gmail_last_sync.isoformat() if current_user.gmail_last_sync else None
+    }
+
+@app.get("/gmail/auth-url")
+async def gmail_auth_url(current_user: User = Depends(get_current_user)):
+    """Obter URL de autorização do Gmail"""
+    try:
+        from google_auth_oauthlib.flow import Flow
+        
+        # Configuração OAuth2 para Gmail
+        client_config = {
+            "web": {
+                "client_id": os.getenv("GMAIL_CLIENT_ID"),
+                "client_secret": os.getenv("GMAIL_CLIENT_SECRET"),
+                "project_id": os.getenv("GMAIL_PROJECT_ID"),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "redirect_uris": [os.getenv("GMAIL_REDIRECT_URI", "http://localhost:8002/gmail/oauth2callback")]
+            }
+        }
+        
+        SCOPES = [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.modify",
+        ]
+        
+        flow = Flow.from_client_config(client_config, SCOPES)
+        flow.redirect_uri = os.getenv("GMAIL_REDIRECT_URI", "http://localhost:8002/gmail/oauth2callback")
+        
+        auth_url, _ = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
+            state=current_user.firebase_uid  # Usar Firebase UID como state
+        )
+        
+        return {"auth_url": auth_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar URL de autorização: {str(e)}")
+
+@app.get("/gmail/oauth2callback")
+async def gmail_oauth2_callback(
+    code: str = None,
+    state: str = None,
+    error: str = None,
+    db: Session = Depends(get_db)
+):
+    """Callback do OAuth2 do Gmail"""
+    try:
+        if error:
+            raise HTTPException(status_code=400, detail=f"Erro na autorização: {error}")
+        
+        if not code or not state:
+            raise HTTPException(status_code=400, detail="Código de autorização ou state não fornecidos")
+        
+        # Buscar usuário pelo Firebase UID (state)
+        from auth.firebase_auth import get_user_by_firebase_uid
+        user = get_user_by_firebase_uid(state, db)
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+        # Configuração OAuth2 para Gmail
+        client_config = {
+            "web": {
+                "client_id": os.getenv("GMAIL_CLIENT_ID"),
+                "client_secret": os.getenv("GMAIL_CLIENT_SECRET"),
+                "project_id": os.getenv("GMAIL_PROJECT_ID"),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "redirect_uris": [os.getenv("GMAIL_REDIRECT_URI", "http://localhost:8002/gmail/oauth2callback")]
+            }
+        }
+        
+        SCOPES = [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.modify",
+        ]
+        
+        from google_auth_oauthlib.flow import Flow
+        flow = Flow.from_client_config(client_config, SCOPES)
+        flow.redirect_uri = os.getenv("GMAIL_REDIRECT_URI", "http://localhost:8002/gmail/oauth2callback")
+        
+        # Trocar código por tokens
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
+        
+        # Converter credenciais para formato armazenável
+        gmail_credentials = {
+            "token": credentials.token,
+            "refresh_token": credentials.refresh_token,
+            "token_uri": credentials.token_uri,
+            "client_id": credentials.client_id,
+            "client_secret": credentials.client_secret,
+            "scopes": credentials.scopes,
+            "expiry": credentials.expiry.isoformat() if credentials.expiry else None,
+            "type": "authorized_user"
+        }
+        
+        # Atualizar usuário no banco de dados
+        from auth.firebase_auth import update_user_gmail_credentials
+        update_user_gmail_credentials(user, gmail_credentials, db)
+        
+        # Retornar página HTML que redireciona automaticamente
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Gmail Conectado</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 50px;
+                    background-color: #f5f5f5;
+                }}
+                .success {{
+                    background-color: #4CAF50;
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                }}
+                .loading {{
+                    font-size: 18px;
+                    color: #666;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="success">
+                <h2>✅ Gmail Conectado com Sucesso!</h2>
+                <p>Suas credenciais foram salvas e você já pode usar o sistema.</p>
+            </div>
+            <div class="loading">
+                <p>Redirecionando para a aplicação...</p>
+                <p>Se não for redirecionado automaticamente, <a href="http://localhost:8001/">clique aqui</a></p>
+            </div>
+            <script>
+                setTimeout(function() {{
+                    window.location.href = "http://localhost:8001/";
+                }}, 3000);
+            </script>
+        </body>
+        </html>
+        """)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no callback OAuth2: {str(e)}")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -263,16 +506,33 @@ async def health_check():
 
 
 @app.get("/gmail/preview")
-async def gmail_preview(limit: int = 5):
+async def gmail_preview(
+    limit: int = 5,
+    current_user: User = Depends(get_current_user)
+):
     try:
-        global gmail_service
-        if gmail_service is None:
-            gmail_service = GmailService()
+        # Verificar se o usuário tem Gmail conectado
+        if not current_user.gmail_connected or not current_user.gmail_credentials:
+            raise HTTPException(status_code=400, detail="Gmail não conectado. Conecte sua conta Gmail primeiro.")
+        
+        # Criar serviço Gmail com credenciais do usuário
+        gmail_service = GmailService(user_credentials=current_user.gmail_credentials)
+        
         if not gmail_service.ensure_authenticated():
-            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Coloque o client_secret.json em backend/credentials e tente novamente.")
+            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Reconecte sua conta Gmail.")
 
         classifier, response_generator, text_processor = get_components()
-        messages = gmail_service.list_unread_messages(max_results=limit)
+        
+        try:
+            messages = gmail_service.list_unread_messages(max_results=limit)
+        except Exception as e:
+            # Se for erro de credenciais inválidas, retornar erro específico
+            if "invalid_grant" in str(e):
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Credenciais do Gmail inválidas. Conecte sua conta Gmail novamente."
+                )
+            raise e
         previews = []
         for m in messages:
             full = gmail_service.get_message_full(m["id"])
@@ -305,13 +565,19 @@ async def gmail_preview(limit: int = 5):
 
 
 @app.post("/gmail/send")
-async def gmail_send(data: dict):
+async def gmail_send(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
     try:
-        global gmail_service
-        if gmail_service is None:
-            gmail_service = GmailService()
+        # Verificar se o usuário tem Gmail conectado
+        if not current_user.gmail_connected or not current_user.gmail_credentials:
+            raise HTTPException(status_code=400, detail="Gmail não conectado. Conecte sua conta Gmail primeiro.")
+        
+        # Criar serviço Gmail com credenciais do usuário
+        gmail_service = GmailService(user_credentials=current_user.gmail_credentials)
         if not gmail_service.ensure_authenticated():
-            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Coloque o client_secret.json em backend/credentials e tente novamente.")
+            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Reconecte sua conta Gmail.")
 
         to_email = data.get("to")
         subject = data.get("subject", "")
@@ -334,13 +600,19 @@ async def gmail_send(data: dict):
         raise HTTPException(status_code=500, detail=f"Erro no envio do Gmail: {msg}")
 
 @app.post("/gmail/mark-read")
-async def gmail_mark_read(data: dict):
+async def gmail_mark_read(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
     try:
-        global gmail_service
-        if gmail_service is None:
-            gmail_service = GmailService()
+        # Verificar se o usuário tem Gmail conectado
+        if not current_user.gmail_connected or not current_user.gmail_credentials:
+            raise HTTPException(status_code=400, detail="Gmail não conectado. Conecte sua conta Gmail primeiro.")
+        
+        # Criar serviço Gmail com credenciais do usuário
+        gmail_service = GmailService(user_credentials=current_user.gmail_credentials)
         if not gmail_service.ensure_authenticated():
-            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Coloque o client_secret.json em backend/credentials e tente novamente.")
+            raise HTTPException(status_code=400, detail="Falha na autenticação Gmail. Reconecte sua conta Gmail.")
 
         message_id = data.get("messageId")
         if not message_id:

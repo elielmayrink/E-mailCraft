@@ -22,7 +22,9 @@ SCOPES = [
 class GmailService:
     """Wrapper simples para operações essenciais do Gmail no MVP."""
 
-    def __init__(self, credentials_dir: str = None):
+    def __init__(self, credentials_dir: str = None, user_credentials: dict = None):
+        self.user_credentials = user_credentials  # Credenciais do usuário do banco de dados
+        
         # Resolve diretório de credenciais de forma independente do CWD
         # 1) Variável de ambiente GMAIL_CREDENTIALS_DIR (opcional)
         # 2) backend/credentials relativo a este arquivo
@@ -48,51 +50,62 @@ class GmailService:
         self.project_id = os.getenv("GMAIL_PROJECT_ID")
         self.redirect_uri = os.getenv("GMAIL_REDIRECT_URI", "http://localhost")
 
+    def _normalize_credentials(self, credentials: dict) -> dict:
+        """
+        Normalizar credenciais para o formato esperado pelo Google OAuth
+        """
+        # Se já está no formato correto, retornar como está
+        if 'token' in credentials and 'client_id' in credentials:
+            return credentials
+        
+        # Se está no formato access_token/refresh_token, converter
+        if 'access_token' in credentials:
+            return {
+                'token': credentials.get('access_token'),
+                'refresh_token': credentials.get('refresh_token'),
+                'token_uri': 'https://oauth2.googleapis.com/token',
+                'client_id': self.client_id,
+                'client_secret': self.client_secret,
+                'scopes': SCOPES,
+                'expiry': credentials.get('expiry'),
+                'type': 'authorized_user'
+            }
+        
+        # Se não conseguiu normalizar, retornar as credenciais originais
+        return credentials
+
     def ensure_authenticated(self) -> bool:
         try:
             creds = None
-            if os.path.exists(self.token_path):
-                creds = Credentials.from_authorized_user_file(self.token_path, SCOPES)
+            
+            # Usar apenas credenciais do usuário do banco de dados
+            if self.user_credentials:
+                try:
+                    # Normalizar credenciais para o formato esperado
+                    normalized_creds = self._normalize_credentials(self.user_credentials)
+                    
+                    # Verificar se as credenciais têm os campos necessários
+                    required_fields = ['token', 'client_id', 'client_secret']
+                    if all(field in normalized_creds for field in required_fields):
+                        creds = Credentials.from_authorized_user_info(normalized_creds, SCOPES)
+                        logger.info("Usando credenciais do usuário do banco de dados")
+                    else:
+                        logger.warning("Credenciais do usuário incompletas")
+                        raise ValueError("Credenciais do usuário incompletas")
+                except Exception as e:
+                    logger.error(f"Erro ao usar credenciais do usuário: {e}")
+                    raise e
+            else:
+                raise ValueError("Nenhuma credencial do usuário fornecida")
 
+            # Verificar se as credenciais são válidas
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
                     from google.auth.transport.requests import Request
                     creds.refresh(Request())
+                    logger.info("Credenciais atualizadas com refresh token")
                 else:
-                    # Check if we have environment variables for OAuth
-                    if not all([self.client_id, self.client_secret]):
-                        raise FileNotFoundError(
-                            "Credenciais Gmail não encontradas. Configure GMAIL_CLIENT_ID e GMAIL_CLIENT_SECRET no arquivo .env"
-                        )
-                    
-                    # Create OAuth flow from environment variables
-                    client_config = {
-                        "installed": {
-                            "client_id": self.client_id,
-                            "client_secret": self.client_secret,
-                            "project_id": self.project_id,
-                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                            "token_uri": "https://oauth2.googleapis.com/token",
-                            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                            "redirect_uris": [self.redirect_uri]
-                        }
-                    }
-                    
-                    flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-                    # Tentar servidor local sem abrir navegador; se falhar, retornar URL de autorização
-                    try:
-                        creds = flow.run_local_server(open_browser=False, port=0)
-                    except Exception:
-                        auth_url, _ = flow.authorization_url(
-                            access_type="offline",
-                            include_granted_scopes="true",
-                            prompt="consent",
-                        )
-                        # Prefixo especial para o endpoint capturar e retornar ao cliente
-                        raise RuntimeError(f"OAUTH_LINK::{auth_url}")
-
-                with open(self.token_path, "w") as token:
-                    token.write(creds.to_json())
+                    raise ValueError("Credenciais inválidas ou expiradas")
 
             self.service = build("gmail", "v1", credentials=creds)
             return True
@@ -110,9 +123,14 @@ class GmailService:
                 .list(userId="me", q="is:unread", maxResults=max_results)
                 .execute()
             )
-            return response.get("messages", [])
+            
+            messages = response.get("messages", [])
+            return messages
         except HttpError as e:
             logger.error(f"Erro ao listar mensagens: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Erro inesperado ao listar mensagens: {e}")
             return []
 
     def get_message_full(self, message_id: str) -> Optional[Dict]:

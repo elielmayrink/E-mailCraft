@@ -12,3 +12,14 @@ pandas==2.1.4
 google-api-python-client==2.137.0
 google-auth==2.33.0
 google-auth-oauthlib==1.2.1
+
+# Database and ORM
+sqlalchemy==2.0.23
+alembic==1.13.1
+
+# Firebase Admin
+firebase-admin==6.4.0
+
+# JWT and Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4

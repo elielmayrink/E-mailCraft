@@ -20,6 +20,56 @@
           <h1>Sistema de Classificação de Emails</h1>
         </div>
         <p class="subtitle">Classifique automaticamente seus emails e gere respostas inteligentes</p>
+
+        <!-- Seção de Login -->
+        <div id="loginSection" class="auth-section" style="display: none;">
+          <div class="login-card">
+            <h3><i class="fas fa-sign-in-alt"></i> Faça Login para Continuar</h3>
+            <p>Entre com sua conta Google para acessar o sistema</p>
+            <button id="loginBtn" class="btn btn-google" onclick="window.authComponents.handleLogin()">
+              <i class="fab fa-google"></i>
+              Entrar com Google
+            </button>
+          </div>
+        </div>
+
+        <!-- Seção do Usuário -->
+        <div id="userSection" class="auth-section" style="display: none;">
+          <div class="user-card">
+            <div class="user-info">
+              <img id="userPhoto" src="" alt="Usuário" class="user-photo">
+              <div class="user-details">
+                <h4 id="userName">Usuário</h4>
+                <p id="userEmail">email@exemplo.com</p>
+              </div>
+            </div>
+            <button id="logoutBtn" class="btn btn-secondary" onclick="window.authComponents.handleLogout()">
+              <i class="fas fa-sign-out-alt"></i>
+              Sair
+            </button>
+          </div>
+        </div>
+
+        <!-- Seção do Gmail -->
+        <div id="gmailSection" class="auth-section" style="display: none;">
+          <div class="gmail-card">
+            <div class="gmail-status">
+              <i class="fab fa-google"></i>
+              <span id="gmailStatus">Verificando conexão...</span>
+            </div>
+            <div class="gmail-actions">
+              <button id="connectGmailBtn" class="btn btn-primary" onclick="window.authComponents.handleConnectGmail()">
+                <i class="fas fa-link"></i>
+                Conectar Gmail
+              </button>
+              <button id="disconnectGmailBtn" class="btn btn-danger"
+                onclick="window.authComponents.handleDisconnectGmail()" style="display: none;">
+                <i class="fas fa-unlink"></i>
+                Desconectar Gmail
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -228,6 +278,14 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts modulares -->
+  <!-- Firebase SDK -->
+  <script src="js/firebase-config.js"></script>
+
+  <!-- Auth Services -->
+  <script src="js/auth-service.js"></script>
+  <script src="js/auth-components.js"></script>
+
+  <!-- Existing Scripts -->
   <script src="js/config.js"></script>
   <script src="js/dom.js"></script>
   <script src="js/validation.js"></script>
@@ -235,6 +293,31 @@
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- Script de inicialização -->
+  <script>
+    // Garantir que a interface de login apareça
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('🚀 DOM carregado, inicializando interface...');
+
+      // Mostrar seção de login por padrão
+      const loginSection = document.getElementById('loginSection');
+      if (loginSection) {
+        loginSection.style.display = 'block';
+        console.log('✅ Seção de login exibida');
+      }
+
+      // Aguardar um pouco e verificar se os serviços carregaram
+      setTimeout(() => {
+        if (window.authComponents && window.authComponents.authService) {
+          console.log('✅ Serviços de autenticação carregados');
+          // Os componentes vão gerenciar a UI automaticamente
+        } else {
+          console.log('⚠️ Serviços de autenticação ainda não carregados');
+        }
+      }, 1000);
+    });
+  </script>
 </body>
 
 </html>

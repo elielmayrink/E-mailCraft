@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - ./backend/config.env
+    restart: unless-stopped
+
+  # Frontend service will be added later
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend:/app
+  #   depends_on:
+  #     - backend

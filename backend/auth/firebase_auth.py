@@ -9,11 +9,17 @@ from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 try:
-    from backend.database import get_db
-    from backend.models.user import User
-except ImportError:
-    from database import get_db
-    from models.user import User
+    # Quando carregado como parte do pacote `backend`
+    from ..database import get_db
+    from ..models import user as user_model
+    User = user_model.User
+except Exception:
+    try:
+        from backend.database import get_db
+        from backend.models.user import User
+    except Exception:
+        from database import get_db
+        from models.user import User
 from datetime import datetime
 
 # Inicializar Firebase Admin

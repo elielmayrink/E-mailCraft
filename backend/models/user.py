@@ -1,9 +1,14 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON
 from sqlalchemy.sql import func
-from database import Base
+
+try:
+    from database import Base
+except ImportError:
+    from backend.database import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     firebase_uid = Column(String(128), unique=True, index=True, nullable=False)

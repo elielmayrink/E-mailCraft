@@ -7,37 +7,44 @@ import os
 import sys
 from pathlib import Path
 
-# Garantir que o diretório backend esteja no PYTHONPATH em ambientes serverless
+# Configurar PYTHONPATH para importações funcionarem corretamente
 current_file = Path(__file__).resolve()
 backend_root = current_file.parent
 project_root = backend_root.parent
-if str(backend_root) not in sys.path:
-    sys.path.insert(0, str(backend_root))
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+
+# Adicionar paths necessários ao sys.path
+paths_to_add = [str(backend_root), str(project_root)]
+for path in paths_to_add:
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
 from datetime import datetime
 from dotenv import load_dotenv
-try:
-    # Quando executado como pacote `backend.main`
-    from .models.classifier import EmailClassifier
-    from .models.response_generator import ResponseGenerator
-    from .utils.text_processor import TextProcessor
-    from .integrations.gmail_service import GmailService
-    from .database import get_db, create_tables
-    from .auth.firebase_auth import get_current_user, verify_firebase_token
-    from .models.user import User
-except Exception:
+
+# Importações com fallback robusto para diferentes ambientes
+def import_modules():
+    """Função para importar módulos com fallback para diferentes estruturas de path"""
+    global EmailClassifier, ResponseGenerator, TextProcessor, GmailService, get_db, create_tables, get_current_user, verify_firebase_token, User
+    
+    import importlib.util
+    
+    def safe_import_from_path(module_name, file_path):
+        """Importa um módulo a partir de um caminho de arquivo"""
+        try:
+            if not file_path.exists():
+                return None
+            spec = importlib.util.spec_from_file_location(module_name, file_path)
+            module = importlib.util.module_from_spec(spec)
+            # Adicionar o módulo ao sys.modules para evitar reimportações
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+            return module
+        except Exception as e:
+            print(f"Erro ao importar {module_name} de {file_path}: {e}")
+            return None
+    
+    # Primeira tentativa: imports relativos 
     try:
-        # Ambiente com pacote disponível via nome absoluto
-        from backend.models.classifier import EmailClassifier
-        from backend.models.response_generator import ResponseGenerator
-        from backend.utils.text_processor import TextProcessor
-        from backend.integrations.gmail_service import GmailService
-        from backend.database import get_db, create_tables
-        from backend.auth.firebase_auth import get_current_user, verify_firebase_token
-        from backend.models.user import User
-    except Exception:
-        # Fallback para execução direta dentro de backend/
         from models.classifier import EmailClassifier
         from models.response_generator import ResponseGenerator
         from utils.text_processor import TextProcessor
@@ -45,6 +52,89 @@ except Exception:
         from database import get_db, create_tables
         from auth.firebase_auth import get_current_user, verify_firebase_token
         from models.user import User
+        print("Imports relativos bem-sucedidos")
+        return True
+    except ImportError as e:
+        print(f"Falha no import relativo: {e}")
+    
+    # Segunda tentativa: imports absolutos com prefixo backend
+    try:
+        from backend.models.classifier import EmailClassifier
+        from backend.models.response_generator import ResponseGenerator
+        from backend.utils.text_processor import TextProcessor
+        from backend.integrations.gmail_service import GmailService
+        from backend.database import get_db, create_tables
+        from backend.auth.firebase_auth import get_current_user, verify_firebase_token
+        from backend.models.user import User
+        print("Imports absolutos com backend bem-sucedidos")
+        return True
+    except ImportError as e:
+        print(f"Falha no import absoluto com backend: {e}")
+    
+    # Terceira tentativa: imports manuais com importlib
+    try:
+        print("Tentando imports manuais...")
+        
+        # Importar database primeiro (outras dependem dele)
+        database_module = safe_import_from_path("database", backend_root / "database.py")
+        if database_module:
+            get_db = database_module.get_db
+            create_tables = database_module.create_tables
+        else:
+            raise ImportError("Não foi possível importar database")
+        
+        # Importar user model
+        user_module = safe_import_from_path("user", backend_root / "models" / "user.py")
+        if user_module:
+            User = user_module.User
+        else:
+            raise ImportError("Não foi possível importar User")
+        
+        # Importar auth
+        auth_module = safe_import_from_path("firebase_auth", backend_root / "auth" / "firebase_auth.py")
+        if auth_module:
+            get_current_user = auth_module.get_current_user
+            verify_firebase_token = auth_module.verify_firebase_token
+        else:
+            raise ImportError("Não foi possível importar firebase_auth")
+        
+        # Importar text processor
+        text_processor_module = safe_import_from_path("text_processor", backend_root / "utils" / "text_processor.py")
+        if text_processor_module:
+            TextProcessor = text_processor_module.TextProcessor
+        else:
+            raise ImportError("Não foi possível importar TextProcessor")
+        
+        # Importar classifier
+        classifier_module = safe_import_from_path("classifier", backend_root / "models" / "classifier.py")
+        if classifier_module:
+            EmailClassifier = classifier_module.EmailClassifier
+        else:
+            raise ImportError("Não foi possível importar EmailClassifier")
+        
+        # Importar response generator
+        response_module = safe_import_from_path("response_generator", backend_root / "models" / "response_generator.py")
+        if response_module:
+            ResponseGenerator = response_module.ResponseGenerator
+        else:
+            raise ImportError("Não foi possível importar ResponseGenerator")
+        
+        # Importar gmail service
+        gmail_module = safe_import_from_path("gmail_service", backend_root / "integrations" / "gmail_service.py")
+        if gmail_module:
+            GmailService = gmail_module.GmailService
+        else:
+            raise ImportError("Não foi possível importar GmailService")
+        
+        print("Imports manuais bem-sucedidos")
+        return True
+        
+    except Exception as e:
+        print(f"Falha no import manual: {e}")
+        raise ImportError(f"Não foi possível importar os módulos necessários: {e}")
+
+# Executar importações
+import_modules()
 
 # Carregar variáveis de ambiente do arquivo config.env
 load_dotenv('config.env')
@@ -112,7 +202,10 @@ async def verify_token(
 ):
     """Verificar token Firebase e criar/atualizar usuário no banco"""
     try:
-        from auth.firebase_auth import get_user_by_firebase_uid, create_user_from_firebase_token
+        try:
+            from auth.firebase_auth import get_user_by_firebase_uid, create_user_from_firebase_token
+        except ImportError:
+            from backend.auth.firebase_auth import get_user_by_firebase_uid, create_user_from_firebase_token
         
         # Buscar usuário existente
         user = get_user_by_firebase_uid(token_data.get("uid"), db)
@@ -147,7 +240,10 @@ async def connect_gmail(
 ):
     """Conectar Gmail do usuário"""
     try:
-        from auth.firebase_auth import update_user_gmail_credentials
+        try:
+            from auth.firebase_auth import update_user_gmail_credentials
+        except ImportError:
+            from backend.auth.firebase_auth import update_user_gmail_credentials
         update_user_gmail_credentials(current_user, credentials, db)
         return {
             "status": "connected",
@@ -163,7 +259,10 @@ async def disconnect_gmail(
 ):
     """Desconectar Gmail do usuário"""
     try:
-        from auth.firebase_auth import disconnect_user_gmail
+        try:
+            from auth.firebase_auth import disconnect_user_gmail
+        except ImportError:
+            from backend.auth.firebase_auth import disconnect_user_gmail
         disconnect_user_gmail(current_user, db)
         return {
             "status": "disconnected",
@@ -235,7 +334,10 @@ async def gmail_oauth2_callback(
             raise HTTPException(status_code=400, detail="Código de autorização ou state não fornecidos")
         
         # Buscar usuário pelo Firebase UID (state)
-        from auth.firebase_auth import get_user_by_firebase_uid
+        try:
+            from auth.firebase_auth import get_user_by_firebase_uid
+        except ImportError:
+            from backend.auth.firebase_auth import get_user_by_firebase_uid
         user = get_user_by_firebase_uid(state, db)
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -280,7 +382,10 @@ async def gmail_oauth2_callback(
         }
         
         # Atualizar usuário no banco de dados
-        from auth.firebase_auth import update_user_gmail_credentials
+        try:
+            from auth.firebase_auth import update_user_gmail_credentials
+        except ImportError:
+            from backend.auth.firebase_auth import update_user_gmail_credentials
         update_user_gmail_credentials(user, gmail_credentials, db)
         
         # Retornar página HTML que redireciona automaticamente

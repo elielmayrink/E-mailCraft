@@ -168,7 +168,7 @@ const UI = {
     container.innerHTML = items
       .map(
         (m, idx) => `
-        <div class="gmail-item" data-index="${idx}" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:12px;">
+        <div class="gmail-item" data-index="${idx}" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:12px; overflow:hidden; word-wrap:break-word; max-width:100%; box-sizing:border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
             <div>
               <strong>De:</strong> ${
@@ -181,9 +181,9 @@ const UI = {
               m.category || ""
             ).toLowerCase()}">${m.category}</span>
           </div>
-          <pre style="white-space:pre-wrap; background:#fafafa; padding:8px; border-radius:6px; margin-top:8px;">${
+          <div style="background:#fafafa; padding:8px; border-radius:6px; margin-top:8px; border:1px solid #e0e0e0; overflow:hidden; word-wrap:break-word; overflow-wrap:break-word; word-break:break-all; white-space:pre-wrap; font-family:monospace; font-size:13px; line-height:1.4; max-width:100%; box-sizing:border-box;">${
             m.snippet || ""
-          }</pre>
+          }</div>
           <div style="margin-top:8px;">
             <strong>Sugestão de resposta:</strong>
             <div class="response-box" style="margin-top:4px;">
@@ -197,13 +197,15 @@ const UI = {
                (m.from || "").split("<")[1]?.replace(">", "") || ""
              }" data-subject="${m.subject || ""}" data-thread="${
           m.threadId || ""
-        }" data-message-id="${m.id || ""}">
-               <i class="fas fa-paper-plane"></i> Enviar
+        }" data-message-id="${
+          m.id || ""
+        }" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                Enviar
              </button>
              <button class="btn btn-secondary gmail-skip" data-message-id="${
                m.id || ""
-             }">
-               <i class="fas fa-forward"></i> Pular
+             }" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+               Marcar como lido
              </button>
           </div>
         </div>

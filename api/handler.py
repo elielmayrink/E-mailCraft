@@ -3,104 +3,75 @@ Handler alternativo para Vercel - compatibilidade máxima
 """
 import json
 import os
-from urllib.parse import urlparse, parse_qs
+from http.server import BaseHTTPRequestHandler
 
-def handler(request, context):
+class handler(BaseHTTPRequestHandler):
     """
-    Handler de baixo nível compatível com Vercel
+    Handler de baixo nível compatível com Vercel usando BaseHTTPRequestHandler
     """
-    try:
-        # Extrair informações da requisição
-        method = request.get('method', 'GET')
-        path = request.get('path', '/')
-        
-        # Log básico para debug
-        print(f"Request: {method} {path}")
-        
-        # Roteamento simples
-        if path == '/api/health' or path == '/health':
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
-                'body': json.dumps({
+    def do_GET(self):
+        """Handle GET requests"""
+        try:
+            path = self.path
+            
+            # Log básico para debug
+            print(f"Request: GET {path}")
+            
+            # Determinar resposta baseada no path
+            if path in ['/health', '/api/health']:
+                response_data = {
                     'status': 'healthy',
-                    'message': 'API funcionando via handler direto!',
-                    'method': method,
+                    'message': 'API funcionando via handler BaseHTTPRequestHandler!',
                     'path': path,
                     'handler': 'handler.py'
-                })
-            }
-        
-        elif path == '/api/debug' or path == '/debug':
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
-                'body': json.dumps({
+                }
+            elif path in ['/debug', '/api/debug']:
+                response_data = {
                     'status': 'debug',
                     'message': 'Debug endpoint funcionando!',
                     'environment': {
                         'VERCEL': os.getenv('VERCEL'),
                         'PYTHON_VERSION': os.getenv('PYTHON_VERSION'),
                     },
-                    'request_info': {
-                        'method': method,
-                        'path': path,
-                        'headers': request.get('headers', {}),
-                    },
+                    'path': path,
                     'handler': 'handler.py'
-                })
-            }
-        
-        elif path in ['/', '/api/', '/api']:
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
-                'body': json.dumps({
+                }
+            elif path in ['/', '/api/', '/api']:
+                response_data = {
                     'status': 'ok',
-                    'message': 'Handler alternativo funcionando!',
-                    'available_endpoints': [
-                        '/api/health',
-                        '/api/debug',
-                        '/api/'
-                    ],
+                    'message': 'Handler BaseHTTPRequestHandler funcionando!',
+                    'available_endpoints': ['/health', '/debug', '/'],
                     'handler': 'handler.py'
-                })
-            }
-        
-        else:
-            return {
-                'statusCode': 404,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
-                'body': json.dumps({
+                }
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                error_data = {
                     'error': 'Endpoint não encontrado',
                     'path': path,
-                    'available_endpoints': ['/api/health', '/api/debug', '/api/'],
+                    'available_endpoints': ['/health', '/debug', '/'],
                     'handler': 'handler.py'
-                })
-            }
+                }
+                self.wfile.write(json.dumps(error_data).encode())
+                return
             
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
-            'body': json.dumps({
+            # Enviar resposta de sucesso
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode())
+            
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            error_data = {
                 'error': 'Erro interno do servidor',
                 'details': str(e),
                 'handler': 'handler.py'
-            })
-        }
+            }
+            self.wfile.write(json.dumps(error_data).encode())

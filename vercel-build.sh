@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Installing backend Python dependencies..."
-pip install -r backend/requirements.txt
+echo "Installing Python dependencies..."
+pip install -r requirements.txt
 
 echo "Build step completed."
 

@@ -2,6 +2,7 @@
   "version": 2,
   "buildCommand": "bash vercel-build.sh",
   "builds": [
+    { "src": "api/simple.py", "use": "@vercel/python" },
     { "src": "api/flask_app.py", "use": "@vercel/python" },
     { "src": "api/handler.py", "use": "@vercel/python" },
     { "src": "api/index.py", "use": "@vercel/python" },
@@ -9,11 +10,12 @@
     { "src": "frontend/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/simple", "dest": "api/simple.py" },
     { "src": "/test", "dest": "api/test.py" },
     { "src": "/flask/(.*)", "dest": "api/flask_app.py" },
     { "src": "/handler/(.*)", "dest": "api/handler.py" },
-    { "src": "/api/health", "dest": "api/handler.py" },
-    { "src": "/api/debug", "dest": "api/handler.py" },
+    { "src": "/api/health", "dest": "api/simple.py" },
+    { "src": "/api/debug", "dest": "api/simple.py" },
     { "src": "/api/(.*)", "dest": "api/index.py" },
     { "src": "/(.*)", "dest": "frontend/$1" }
   ],

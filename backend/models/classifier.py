@@ -1,5 +1,3 @@
-import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import logging
 from typing import Dict, Any
 import os
@@ -27,25 +25,10 @@ class EmailClassifier:
         logger.info("Cliente Gemini configurado no classificador!")
     
     def _load_model(self):
-        """Carrega o modelo DistilBERT como fallback"""
-        try:
-            logger.info("Carregando modelo DistilBERT como fallback...")
-            
-            # Usar pipeline para classificação de texto
-            self.classifier = pipeline(
-                "text-classification",
-                model=self.model_name,
-                tokenizer=self.model_name,
-                device=-1,  # Usar CPU (device=-1)
-                return_all_scores=True
-            )
-            
-            logger.info("Modelo DistilBERT carregado como fallback!")
-            
-        except Exception as e:
-            logger.error(f"Erro ao carregar modelo: {e}")
-            # Fallback para modelo mais simples
-            self._load_fallback_model()
+        """Inicializa classificação sem dependências pesadas por padrão."""
+        # Para Vercel/serverless, evitamos carregar transformers/torch
+        self.classifier = None
+        self._load_fallback_model()
         
         # Sempre carregar palavras-chave como fallback adicional
         self._load_keywords()
@@ -68,16 +51,9 @@ class EmailClassifier:
     def _load_fallback_model(self):
         """Carrega modelo de fallback mais simples"""
         try:
-            logger.info("Carregando modelo de fallback...")
-            from sklearn.feature_extraction.text import TfidfVectorizer
-            from sklearn.naive_bayes import MultinomialNB
-            import pickle
-            
-            # Modelo simples baseado em palavras-chave
+            logger.info("Carregando modelo de fallback leve (palavras-chave)...")
             self.fallback_model = True
-            
             logger.info("Modelo de fallback carregado!")
-            
         except Exception as e:
             logger.error(f"Erro ao carregar modelo de fallback: {e}")
             raise
@@ -175,24 +151,14 @@ Responda apenas: PRODUTIVO ou IMPRODUTIVO"""
                 except Exception as e:
                     logger.warning(f"Gemini falhou, usando fallback: {e}")
             
-            # Fallback para DistilBERT se disponível
-            if self.classifier and not hasattr(self, 'fallback_model'):
-                result = self._predict_bert(text)
-                return {
-                    "category": result,
-                    "confidence": self.last_confidence,
-                    "method": "distilbert",
-                    "model_info": "DistilBERT - Modelo de IA avançado (fallback)"
-                }
-            else:
-                # Fallback para palavras-chave
-                result = self._predict_fallback(text)
-                return {
-                    "category": result,
-                    "confidence": self.last_confidence,
-                    "method": "keywords_fallback",
-                    "model_info": "Classificação por palavras-chave (fallback)"
-                }
+            # Fallback para palavras-chave (sem dependências pesadas)
+            result = self._predict_fallback(text)
+            return {
+                "category": result,
+                "confidence": self.last_confidence,
+                "method": "keywords_fallback",
+                "model_info": "Classificação por palavras-chave (fallback)"
+            }
                 
         except Exception as e:
             logger.error(f"Erro na classificação: {e}")
@@ -204,35 +170,9 @@ Responda apenas: PRODUTIVO ou IMPRODUTIVO"""
             }
     
     def _predict_bert(self, text: str) -> str:
-        """Classificação usando DistilBERT (fallback)"""
-        try:
-            # Limitar tamanho do texto para o modelo
-            text = text[:512]  # DistilBERT tem limite de 512 tokens
-            
-            # Classificar o texto
-            results = self.classifier(text)
-            
-            # Extrair resultados
-            if results and len(results) > 0:
-                # Pegar o resultado com maior score
-                best_result = max(results[0], key=lambda x: x['score'])
-                self.last_confidence = best_result['score']
-                
-                # Mapear labels para nossas categorias
-                label = best_result['label']
-                
-                # DistilBERT retorna LABEL_0 ou LABEL_1
-                # Assumimos que LABEL_1 é mais "positivo/produtivo"
-                if label == 'LABEL_1' and best_result['score'] > 0.6:
-                    return "Produtivo"
-                else:
-                    return "Improdutivo"
-            else:
-                return "Improdutivo"
-                
-        except Exception as e:
-            logger.error(f"Erro na classificação BERT: {e}")
-            return self._predict_fallback(text)
+        """Removido em ambiente serverless; mantido por compatibilidade."""
+        logger.info("Classificação BERT desabilitada neste deploy. Usando fallback.")
+        return self._predict_fallback(text)
     
     def _predict_fallback(self, text: str) -> str:
         """Classificação usando palavras-chave (fallback)"""

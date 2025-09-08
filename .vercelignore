@@ -1,0 +1,11 @@
+backend/__pycache__/
+backend/venv/
+backend/email_agent.db
+backend/config.env
+backend/credentials/
+frontend/test-*
+*.md
+TESTE-*
+task-*
+.git/
+.gitignore

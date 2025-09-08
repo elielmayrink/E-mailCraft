@@ -1,5 +1,26 @@
 // Chamadas da API
 const API = {
+  // Obter headers de autenticação
+  async getAuthHeaders() {
+    try {
+      if (window.authService && window.authService.isAuthenticated()) {
+        const userData = await window.authService.getCurrentUser();
+        return {
+          Authorization: `Bearer ${userData.token}`,
+          "Content-Type": "application/json",
+        };
+      }
+      return {
+        "Content-Type": "application/json",
+      };
+    } catch (error) {
+      console.error("Erro ao obter headers de autenticação:", error);
+      return {
+        "Content-Type": "application/json",
+      };
+    }
+  },
+
   // Verificar status da API
   async checkStatus() {
     try {
@@ -31,6 +52,81 @@ const API = {
         "error"
       );
       return false;
+    }
+  },
+
+  // Gmail: preview não lidos
+  async gmailPreview(limit = 5) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const url = `${window.CONFIG.API_BASE_URL}/gmail/preview?limit=${limit}`;
+      const response = await fetch(url, { headers });
+
+      if (response.status === 401) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const data = await response.json();
+      if (data.auth_url) {
+        return { auth_url: data.auth_url };
+      }
+      return data;
+    } catch (error) {
+      console.error("Erro no preview do Gmail:", error);
+      throw error;
+    }
+  },
+
+  // Gmail: enviar resposta
+  async gmailSend({ to, subject, body, threadId }) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${window.CONFIG.API_BASE_URL}/gmail/send`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ to, subject, body, threadId }),
+      });
+
+      if (response.status === 401) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Erro ao enviar email:", error);
+      throw error;
+    }
+  },
+
+  // Gmail: marcar como lido
+  async gmailMarkRead(messageId) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(
+        `${window.CONFIG.API_BASE_URL}/gmail/mark-read`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ messageId }),
+        }
+      );
+
+      if (response.status === 401) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Erro ao marcar como lido:", error);
+      throw error;
     }
   },
 

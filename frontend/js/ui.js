@@ -142,6 +142,127 @@ const UI = {
   hideResults() {
     window.DOM.resultsSection.style.display = "none";
   },
+
+  // Renderizar lista do Gmail
+  renderGmailList(data) {
+    const container = document.getElementById("gmailList");
+    if (!container) return;
+    if (data.auth_url) {
+      container.innerHTML = `
+        <div class="alert alert-warning">
+          <p>Autenticação necessária. Clique para autorizar o acesso ao Gmail.</p>
+          <a class="btn btn-primary" href="${data.auth_url}" target="_blank">
+            <i class="fas fa-link"></i> Autorizar no Google
+          </a>
+        </div>
+      `;
+      return;
+    }
+
+    const items = data.items || [];
+    if (items.length === 0) {
+      container.innerHTML = `<p>Nenhum email não lido encontrado.</p>`;
+      return;
+    }
+
+    container.innerHTML = items
+      .map(
+        (m, idx) => `
+        <div class="gmail-item" data-index="${idx}" style="border:1px solid #eee; padding:12px; border-radius:8px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div>
+              <strong>De:</strong> ${
+                m.from || "(desconhecido)"
+              } &nbsp;|&nbsp; <strong>Assunto:</strong> ${
+          m.subject || "(sem assunto)"
+        }
+            </div>
+            <span class="category-badge category-${(
+              m.category || ""
+            ).toLowerCase()}">${m.category}</span>
+          </div>
+          <pre style="white-space:pre-wrap; background:#fafafa; padding:8px; border-radius:6px; margin-top:8px;">${
+            m.snippet || ""
+          }</pre>
+          <div style="margin-top:8px;">
+            <strong>Sugestão de resposta:</strong>
+            <div class="response-box" style="margin-top:4px;">
+              <textarea class="gmail-reply" rows="3" style="width:100%">${
+                m.suggested_response || ""
+              }</textarea>
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+             <button class="btn btn-primary gmail-send" data-to="${
+               (m.from || "").split("<")[1]?.replace(">", "") || ""
+             }" data-subject="${m.subject || ""}" data-thread="${
+          m.threadId || ""
+        }" data-message-id="${m.id || ""}">
+               <i class="fas fa-paper-plane"></i> Enviar
+             </button>
+             <button class="btn btn-secondary gmail-skip" data-message-id="${
+               m.id || ""
+             }">
+               <i class="fas fa-forward"></i> Pular
+             </button>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+
+    // Bind eventos dos botões
+    container.querySelectorAll(".gmail-send").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const item = e.target.closest(".gmail-item");
+        const reply = item.querySelector(".gmail-reply").value;
+        const to = btn.getAttribute("data-to");
+        const subject = btn.getAttribute("data-subject");
+        const threadId = btn.getAttribute("data-thread") || undefined;
+        const messageId = btn.getAttribute("data-message-id");
+        try {
+          UI.showLoading("Enviando resposta...");
+          const res = await window.API.gmailSend({
+            to,
+            subject,
+            body: reply,
+            threadId,
+          });
+          // Marcar como lido após enviar
+          if (messageId) {
+            await window.API.gmailMarkRead(messageId);
+          }
+          UI.hideLoading();
+          UI.showToast("Resposta enviada e marcada como lida!", "success");
+          item.remove();
+        } catch (err) {
+          UI.hideLoading();
+          UI.showToast("Falha ao enviar: " + err.message, "error");
+        }
+      });
+    });
+
+    container.querySelectorAll(".gmail-skip").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const item = btn.closest(".gmail-item");
+        const messageId = btn.getAttribute("data-message-id");
+        try {
+          // Marcar como lido ao pular
+          if (messageId) {
+            UI.showLoading("Marcando como lido...");
+            await window.API.gmailMarkRead(messageId);
+            UI.hideLoading();
+            UI.showToast("Email marcado como lido", "success");
+          }
+          item.remove();
+        } catch (err) {
+          UI.hideLoading();
+          UI.showToast("Falha ao marcar como lido: " + err.message, "error");
+          item.remove(); // Remove mesmo se falhar
+        }
+      });
+    });
+  },
 };
 
 // Exportar UI

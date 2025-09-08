@@ -1,11 +1,14 @@
 // Aplicação principal
 const App = {
   // Inicializar aplicação
-  init() {
+  async init() {
     console.log("🚀 Inicializando aplicação...");
 
     // Inicializar DOM
     window.DOM.init();
+
+    // Aguardar Firebase estar carregado
+    await this.waitForFirebase();
 
     // Inicializar event listeners
     this.initializeEventListeners();
@@ -14,6 +17,30 @@ const App = {
     window.API.checkStatus();
 
     console.log("✅ Aplicação inicializada");
+  },
+
+  // Aguardar Firebase estar carregado
+  async waitForFirebase() {
+    return new Promise((resolve) => {
+      const checkFirebase = () => {
+        if (
+          typeof window.firebaseAuth !== "undefined" &&
+          typeof window.authService !== "undefined" &&
+          typeof window.authComponents !== "undefined"
+        ) {
+          console.log("✅ Firebase e serviços de autenticação carregados");
+          resolve();
+        } else {
+          console.log("⏳ Aguardando Firebase...", {
+            firebaseAuth: typeof window.firebaseAuth !== "undefined",
+            authService: typeof window.authService !== "undefined",
+            authComponents: typeof window.authComponents !== "undefined",
+          });
+          setTimeout(checkFirebase, 100);
+        }
+      };
+      checkFirebase();
+    });
   },
 
   // Inicializar event listeners
@@ -67,6 +94,76 @@ const App = {
     console.log("✅ Event listener para keyboard shortcuts adicionado");
 
     console.log("✅ Todos os event listeners inicializados");
+
+    // Gmail buttons
+    if (window.DOM.gmailAuthBtn) {
+      window.DOM.gmailAuthBtn.addEventListener("click", async () => {
+        try {
+          // Verificar se usuário está autenticado
+          if (!window.authService.isAuthenticated()) {
+            window.UI.showToast(
+              "Faça login primeiro para acessar o Gmail",
+              "error"
+            );
+            return;
+          }
+
+          window.UI.showLoading("Conectando ao Gmail...");
+          const data = await window.API.gmailPreview(5);
+          window.UI.hideLoading();
+          window.UI.renderGmailList(data);
+          if (!data.auth_url && data.items?.length) {
+            window.UI.showToast("Emails carregados do Gmail!", "success");
+          }
+        } catch (err) {
+          window.UI.hideLoading();
+          if (err.message === "Usuário não autenticado") {
+            window.UI.showToast(
+              "Faça login primeiro para acessar o Gmail",
+              "error"
+            );
+          } else {
+            window.UI.showToast(
+              "Erro ao conectar Gmail: " + err.message,
+              "error"
+            );
+          }
+        }
+      });
+    }
+
+    if (window.DOM.gmailRefreshBtn) {
+      window.DOM.gmailRefreshBtn.addEventListener("click", async () => {
+        try {
+          // Verificar se usuário está autenticado
+          if (!window.authService.isAuthenticated()) {
+            window.UI.showToast(
+              "Faça login primeiro para acessar o Gmail",
+              "error"
+            );
+            return;
+          }
+
+          window.UI.showLoading("Atualizando emails...");
+          const data = await window.API.gmailPreview(5);
+          window.UI.hideLoading();
+          window.UI.renderGmailList(data);
+        } catch (err) {
+          window.UI.hideLoading();
+          if (err.message === "Usuário não autenticado") {
+            window.UI.showToast(
+              "Faça login primeiro para acessar o Gmail",
+              "error"
+            );
+          } else {
+            window.UI.showToast(
+              "Erro ao atualizar Gmail: " + err.message,
+              "error"
+            );
+          }
+        }
+      });
+    }
   },
 
   // Validar formulário

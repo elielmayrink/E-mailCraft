@@ -1,2 +1,29 @@
 task.md
 /backend/config.env
+/backend/credentials
+/task-email-agent.md
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+backend/email_agent.db
+
+# Documentation files
+*.md
+README.md
+CONTRIBUTING.md
+DEPLOY-VERCEL.md
+task-*.md
+TESTE-*.md
+
+# Test files
+test-*.py
+test-*.html
+test-*.js
+*test*.py
+*test*.html
+*test*.js
+backend/test_*.py
+frontend/test-*.html
+frontend/test-*.js

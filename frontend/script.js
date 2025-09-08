@@ -1,5 +1,7 @@
 // Configuração da API
-const API_BASE_URL = "http://localhost:8002";
+const API_BASE_URL = window.location.hostname.includes("localhost")
+  ? "http://localhost:8002"
+  : "/api";
 
 // Elementos DOM
 const emailText = document.getElementById("emailText");

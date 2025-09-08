@@ -1,6 +1,8 @@
 // Configuração da API
 console.log("📋 Carregando config.js...");
-const API_BASE_URL = "http://localhost:8002";
+const API_BASE_URL = window.location.hostname.includes("localhost")
+  ? "http://localhost:8002"
+  : "/api";
 
 // Configurações de arquivo
 const VALID_FILE_TYPES = ["text/plain", "application/pdf"];

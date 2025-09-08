@@ -33,8 +33,12 @@ frontend_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "f
 if os.path.isdir(frontend_dir):
     app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
-# Inicializar banco de dados
-create_tables()
+# Inicializar banco de dados (tolerante a falhas em ambiente serverless)
+try:
+    create_tables()
+except Exception as e:
+    # Evitar derrubar a função em produção; logs aparecem nos logs do provedor
+    print(f"[init] Aviso: falha ao criar tabelas: {e}")
 
 # Inicializar componentes (será feito nas funções)
 classifier = None
@@ -514,7 +518,13 @@ async def configure_ai(data: dict):
 @app.get("/health")
 async def health_check():
     """Endpoint de health check"""
-    return {"status": "healthy", "message": "API funcionando corretamente"}
+    try:
+        # Verificar acesso básico ao banco
+        _ = next(get_db())
+        return {"status": "healthy", "message": "API funcionando corretamente"}
+    except Exception as e:
+        # Retornar 500 com detalhe mínimo para ajudar debug em prod
+        raise HTTPException(status_code=500, detail=f"Health check falhou: {str(e)}")
 
 
 @app.get("/gmail/preview")

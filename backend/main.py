@@ -17,7 +17,7 @@ from models.user import User
 # Carregar variáveis de ambiente do arquivo config.env
 load_dotenv('config.env')
 
-app = FastAPI(title="Email Classification API", version="1.0.0")
+app = FastAPI(title="Email Classification API", version="1.0.0", root_path="/api")
 
 # CORS middleware para permitir requisições do frontend
 app.add_middleware(

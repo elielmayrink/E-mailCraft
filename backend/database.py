@@ -10,7 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # URL do banco de dados
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./email_agent.db")
+# Em ambientes serverless (Vercel), o filesystem é read-only, exceto /tmp
+# Portanto, use /tmp por padrão para SQLite quando nenhuma URL é fornecida
+default_sqlite_path = "sqlite:////tmp/email_agent.db"
+DATABASE_URL = os.getenv("DATABASE_URL", default_sqlite_path)
+
+# Se estiver usando SQLite com caminho relativo, redirecionar para /tmp
+if DATABASE_URL.startswith("sqlite") and ("///./" in DATABASE_URL or DATABASE_URL.endswith("email_agent.db")):
+    DATABASE_URL = default_sqlite_path
 
 # Criar engine
 engine = create_engine(

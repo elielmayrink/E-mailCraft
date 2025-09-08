@@ -4,6 +4,17 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import os
+import sys
+from pathlib import Path
+
+# Garantir que o diretório backend esteja no PYTHONPATH em ambientes serverless
+current_file = Path(__file__).resolve()
+backend_root = current_file.parent
+project_root = backend_root.parent
+if str(backend_root) not in sys.path:
+    sys.path.insert(0, str(backend_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 from datetime import datetime
 from dotenv import load_dotenv
 from models.classifier import EmailClassifier

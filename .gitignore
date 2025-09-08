@@ -10,10 +10,8 @@ task.md
 backend/email_agent.db
 
 # Documentation files
-*.md
-README.md
-CONTRIBUTING.md
-DEPLOY-VERCEL.md
+README-DEPLOY.md
+DEPLOY_VERCEL.md
 task-*.md
 TESTE-*.md
 

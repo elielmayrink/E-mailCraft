@@ -8,8 +8,12 @@ from firebase_admin import credentials, auth as firebase_auth
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from database import get_db
-from models.user import User
+try:
+    from backend.database import get_db
+    from backend.models.user import User
+except ImportError:
+    from database import get_db
+    from models.user import User
 from datetime import datetime
 
 # Inicializar Firebase Admin

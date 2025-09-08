@@ -33,6 +33,14 @@ echo "📦 Construindo e iniciando Backend (Docker)..."
 docker build -t case-pratico-backend ./backend >/dev/null 2>&1
 docker run -d --name case-pratico-backend -p 8002:8002 --env-file ./backend/config.env -v $(pwd)/backend:/app case-pratico-backend
 
+# Executar migrações do banco de dados (Alembic)
+echo "🗄️ Executando migrações do banco (alembic upgrade head)..."
+docker exec case-pratico-backend bash -lc "alembic upgrade head" || {
+    echo "❌ Falha ao executar migrações. Verificando logs do container...";
+    docker logs case-pratico-backend;
+    exit 1;
+}
+
 # Aguardar backend inicializar
 echo "⏳ Aguardando Backend inicializar..."
 sleep 15

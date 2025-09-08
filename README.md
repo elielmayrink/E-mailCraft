@@ -286,6 +286,20 @@ docker rmi case-pratico-backend
 
 **Sistema completo e funcional** com todas as integrações implementadas e testadas. Pronto para uso em ambiente de produção.
 
+## 🚀 Deploy em Produção
+
+Quer colocar o sistema no ar? Siga nosso guia completo:
+
+**[📖 Guia de Deploy na Vercel](DEPLOY-VERCEL.md)** - Passo a passo detalhado para deploy em produção
+
+O guia inclui:
+
+- ✅ Como criar conta na Vercel
+- ✅ Configuração de variáveis de ambiente
+- ✅ Deploy automático via GitHub
+- ✅ Configuração de domínio personalizado
+- ✅ Solução de problemas comuns
+
 ## 🤝 Contribuindo
 
 Quer contribuir para o projeto? Siga nosso guia completo:

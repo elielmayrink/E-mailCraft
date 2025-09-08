@@ -1,6 +1,3 @@
-"""
-Modelo de usuário com SQLAlchemy
-"""
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON
 from sqlalchemy.sql import func
 from database import Base
@@ -13,13 +10,12 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=True)
     photo_url = Column(String(500), nullable=True)
-    
-    # Configurações do Gmail
-    gmail_credentials = Column(JSON, nullable=True)  # Armazena credenciais do Gmail
+    # Gmail
+    gmail_credentials = Column(JSON, nullable=True)  # Credenciais do Gmail
     gmail_connected = Column(Boolean, default=False)
     gmail_last_sync = Column(DateTime, nullable=True)
     
-    # Configurações do usuário
+    # Preferências do usuário
     preferences = Column(JSON, nullable=True)  # Preferências do usuário
     is_active = Column(Boolean, default=True)
     is_premium = Column(Boolean, default=False)

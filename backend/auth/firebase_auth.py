@@ -50,7 +50,7 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
         decoded_token = firebase_auth.verify_id_token(credentials.credentials)
         return decoded_token
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Token inválido: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
 
 async def get_current_user(
     token_data: dict = Depends(verify_firebase_token),

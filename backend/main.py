@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import os
@@ -28,6 +28,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Servir frontend estático em /frontend
+frontend_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+if os.path.isdir(frontend_dir):
+    app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
 # Inicializar banco de dados
 create_tables()
 
@@ -51,9 +56,10 @@ def get_components():
         text_processor = TextProcessor()
     if gmail_service is None:
         gmail_service = GmailService()
+    # Garantir sincronização do cliente Gemini mesmo em chamadas subsequentes
+    if hasattr(response_generator, 'gemini_client') and response_generator.gemini_client:
+        classifier.set_gemini_client(response_generator.gemini_client)
     return classifier, response_generator, text_processor
-
-# ==================== ENDPOINTS DE AUTENTICAÇÃO ====================
 
 @app.get("/auth/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
@@ -487,12 +493,18 @@ async def test_ai(data: dict):
 async def configure_ai(data: dict):
     """Configura API key da IA (Gemini)"""
     try:
+        # Garantir que os componentes estejam inicializados
+        global classifier, response_generator
+        classifier, response_generator, _ = get_components()
         api_key = data.get("api_key", "")
         if not api_key:
             raise HTTPException(status_code=400, detail="API key é obrigatória")
         
         success = response_generator.set_gemini_key(api_key)
         if success:
+            # Propagar imediatamente para o classificador
+            if hasattr(response_generator, 'gemini_client') and response_generator.gemini_client:
+                classifier.set_gemini_client(response_generator.gemini_client)
             return {"status": "success", "message": "IA configurada com sucesso!"}
         else:
             raise HTTPException(status_code=500, detail="Erro ao configurar IA")

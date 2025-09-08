@@ -139,7 +139,12 @@ import_modules()
 # Carregar variáveis de ambiente do arquivo config.env
 load_dotenv('config.env')
 
-app = FastAPI(title="Email Classification API", version="1.0.0", root_path="/api")
+# Configurar root_path dinamicamente baseado no ambiente
+root_path = ""
+if os.getenv("VERCEL_ENV") or os.getenv("VERCEL"):
+    root_path = "/api"
+
+app = FastAPI(title="Email Classification API", version="1.0.0", root_path=root_path)
 
 # CORS middleware para permitir requisições do frontend
 app.add_middleware(
@@ -662,6 +667,19 @@ async def health_check():
     except Exception as e:
         # Retornar 500 com detalhe mínimo para ajudar debug em prod
         raise HTTPException(status_code=500, detail=f"Health check falhou: {str(e)}")
+
+@app.get("/debug")
+async def debug_info():
+    """Endpoint para debug da configuração"""
+    return {
+        "status": "ok",
+        "root_path": app.root_path,
+        "environment": {
+            "VERCEL": os.getenv("VERCEL"),
+            "VERCEL_ENV": os.getenv("VERCEL_ENV"),
+        },
+        "message": "API está funcionando - problema de roteamento resolvido!"
+    }
 
 
 @app.get("/gmail/preview")

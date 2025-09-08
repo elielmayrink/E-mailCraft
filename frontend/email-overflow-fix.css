@@ -1,0 +1,16 @@
+/* Prevenção de overflow em conteúdo de email */
+#gmailList,
+.gmail-item,
+.gmail-item * {
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+#gmailList .gmail-item pre,
+#gmailList .gmail-item div {
+  overflow-x: hidden !important;
+  white-space: pre-wrap !important;
+}

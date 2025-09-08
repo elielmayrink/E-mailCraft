@@ -18,21 +18,33 @@ if str(project_root) not in sys.path:
 from datetime import datetime
 from dotenv import load_dotenv
 try:
-    from backend.models.classifier import EmailClassifier
-    from backend.models.response_generator import ResponseGenerator
-    from backend.utils.text_processor import TextProcessor
-    from backend.integrations.gmail_service import GmailService
-    from backend.database import get_db, create_tables
-    from backend.auth.firebase_auth import get_current_user, verify_firebase_token
-    from backend.models.user import User
-except ImportError:
-    from models.classifier import EmailClassifier
-    from models.response_generator import ResponseGenerator
-    from utils.text_processor import TextProcessor
-    from integrations.gmail_service import GmailService
-    from database import get_db, create_tables
-    from auth.firebase_auth import get_current_user, verify_firebase_token
-    from models.user import User
+    # Quando executado como pacote `backend.main`
+    from .models.classifier import EmailClassifier
+    from .models.response_generator import ResponseGenerator
+    from .utils.text_processor import TextProcessor
+    from .integrations.gmail_service import GmailService
+    from .database import get_db, create_tables
+    from .auth.firebase_auth import get_current_user, verify_firebase_token
+    from .models.user import User
+except Exception:
+    try:
+        # Ambiente com pacote disponível via nome absoluto
+        from backend.models.classifier import EmailClassifier
+        from backend.models.response_generator import ResponseGenerator
+        from backend.utils.text_processor import TextProcessor
+        from backend.integrations.gmail_service import GmailService
+        from backend.database import get_db, create_tables
+        from backend.auth.firebase_auth import get_current_user, verify_firebase_token
+        from backend.models.user import User
+    except Exception:
+        # Fallback para execução direta dentro de backend/
+        from models.classifier import EmailClassifier
+        from models.response_generator import ResponseGenerator
+        from utils.text_processor import TextProcessor
+        from integrations.gmail_service import GmailService
+        from database import get_db, create_tables
+        from auth.firebase_auth import get_current_user, verify_firebase_token
+        from models.user import User
 
 # Carregar variáveis de ambiente do arquivo config.env
 load_dotenv('config.env')

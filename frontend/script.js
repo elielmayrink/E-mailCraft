@@ -18,31 +18,23 @@ let selectedFile = null;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("🚀 Inicializando aplicação...");
-  console.log("📁 selectedFile inicial:", selectedFile);
   initializeEventListeners();
   checkAPIStatus();
-  console.log("✅ Aplicação inicializada");
 });
 
 // Event Listeners
 function initializeEventListeners() {
-  console.log("🔧 Inicializando event listeners...");
-
   // File upload events
   emailFile.addEventListener("change", handleFileSelect);
-  console.log("✅ Event listener para emailFile adicionado");
 
   // Drag and drop events
   fileUploadArea.addEventListener("dragover", handleDragOver);
   fileUploadArea.addEventListener("dragleave", handleDragLeave);
   fileUploadArea.addEventListener("drop", handleDrop);
-  console.log("✅ Event listeners para drag and drop adicionados");
 
   // Form validation
   emailText.addEventListener("input", validateForm);
   emailFile.addEventListener("change", validateForm);
-  console.log("✅ Event listeners para validação adicionados");
 
   // Enter key para classificar
   emailText.addEventListener("keydown", function (e) {
@@ -50,17 +42,11 @@ function initializeEventListeners() {
       classifyEmail();
     }
   });
-  console.log("✅ Event listener para keyboard shortcuts adicionado");
-
-  console.log("✅ Todos os event listeners inicializados");
 }
 
 // File Upload Functions
 function handleFileSelect(event) {
-  console.log("📁 handleFileSelect chamado");
-  console.log("📁 event.target.files:", event.target.files);
   const file = event.target.files[0];
-  console.log("📁 Arquivo selecionado:", file);
   if (file) {
     console.log("📁 Chamando processSelectedFile...");
     processSelectedFile(file);
@@ -80,20 +66,15 @@ function handleDragLeave(event) {
 }
 
 function handleDrop(event) {
-  console.log("📁 handleDrop chamado");
   event.preventDefault();
   fileUploadArea.classList.remove("dragover");
 
   const files = event.dataTransfer.files;
-  console.log("📁 Arquivos no drop:", files);
   if (files.length > 0) {
     const file = files[0];
-    console.log("📁 Arquivo do drop:", file);
     if (isValidFileType(file)) {
-      console.log("📁 Arquivo válido, chamando processSelectedFile...");
       processSelectedFile(file);
     } else {
-      console.log("❌ Arquivo inválido");
       showToast(
         "Tipo de arquivo não suportado. Use apenas .txt ou .pdf",
         "error"
@@ -105,11 +86,8 @@ function handleDrop(event) {
 }
 
 function processSelectedFile(file) {
-  console.log("📁 Processando arquivo selecionado:", file);
-  console.log("📁 selectedFile antes:", selectedFile);
-
   selectedFile = file;
-  console.log("📁 selectedFile após atribuição:", selectedFile);
+  selectedFile = file;
 
   // Update file info display
   const fileName = document.querySelector(".file-name");
@@ -125,17 +103,11 @@ function processSelectedFile(file) {
   // Clear text input
   emailText.value = "";
 
-  console.log("✅ Arquivo processado com sucesso");
-  console.log("📁 selectedFile após processamento:", selectedFile);
-  console.log("📁 selectedFile !== null:", selectedFile !== null);
-
   // Validar formulário após processar arquivo
   const isValid = validateForm();
-  console.log("🔍 Validação após processar arquivo:", isValid);
 }
 
 function removeFile() {
-  console.log("🗑️ Removendo arquivo...");
   selectedFile = null;
   emailFile.value = "";
 
@@ -143,7 +115,6 @@ function removeFile() {
   fileUploadArea.style.display = "block";
   fileInfo.style.display = "none";
 
-  console.log("✅ Arquivo removido");
   validateForm();
 }
 
@@ -156,14 +127,6 @@ function isValidFileType(file) {
     file.name.toLowerCase().endsWith(ext)
   );
   const isValid = isValidType || isValidExtension;
-
-  console.log("🔍 Validando tipo de arquivo:");
-  console.log("📁 Arquivo:", file.name);
-  console.log("📁 Tipo:", file.type);
-  console.log("📁 Extensões válidas:", validExtensions);
-  console.log("✅ Tipo válido:", isValidType);
-  console.log("✅ Extensão válida:", isValidExtension);
-  console.log("✅ Arquivo válido:", isValid);
 
   return isValid;
 }
@@ -183,13 +146,6 @@ function validateForm() {
   const hasText = emailText.value.trim().length > 0;
   const hasFile = selectedFile !== null;
 
-  console.log("🔍 Validando formulário:");
-  console.log("📝 Tem texto:", hasText);
-  console.log("📁 Tem arquivo:", hasFile);
-  console.log("📁 Arquivo:", selectedFile);
-  console.log("📁 selectedFile !== null:", selectedFile !== null);
-  console.log("📁 typeof selectedFile:", typeof selectedFile);
-
   const isValid = hasText || hasFile;
   classifyBtn.disabled = !isValid;
 
@@ -201,24 +157,16 @@ function validateForm() {
     return false;
   }
 
-  console.log("✅ Formulário válido:", isValid);
-  console.log("🔘 Botão desabilitado:", classifyBtn.disabled);
   return isValid;
 }
 
 // API Functions
 async function checkAPIStatus() {
   try {
-    console.log("🔍 Testando conectividade com API...");
-    console.log("🌐 URL:", `${API_BASE_URL}/health`);
-    console.log("🔑 API_BASE_URL:", API_BASE_URL);
-
     const response = await fetch(`${API_BASE_URL}/health`);
-    console.log("📡 Resposta do health:", response.status, response.statusText);
 
     if (response.ok) {
       const data = await response.json();
-      console.log("✅ Dados do health:", data);
       showToast("✅ API conectada com sucesso!", "success");
       return true;
     } else {
@@ -262,15 +210,9 @@ async function testAI() {
 }
 
 async function classifyEmail() {
-  console.log("🔍 Iniciando classificação...");
-  console.log("📁 Arquivo selecionado:", selectedFile);
-  console.log("📝 Texto:", emailText.value.trim());
-
   // Validar formulário
   const isValid = validateForm();
-  console.log("🔍 Validação retornou:", isValid);
   if (!isValid) {
-    console.log("❌ Formulário inválido, mostrando toast");
     showToast("Por favor, insira um texto ou selecione um arquivo", "warning");
     return;
   }
@@ -281,7 +223,6 @@ async function classifyEmail() {
     let response;
 
     if (selectedFile) {
-      console.log("📤 Fazendo upload do arquivo:", selectedFile.name);
       // Upload file
       response = await classifyFile();
     } else {
@@ -290,7 +231,6 @@ async function classifyEmail() {
       response = await classifyText();
     }
 
-    console.log("✅ Resposta recebida:", response);
     hideLoading();
     displayResults(response);
   } catch (error) {
@@ -319,11 +259,6 @@ async function classifyText() {
 }
 
 async function classifyFile() {
-  console.log("📤 Iniciando upload do arquivo...");
-  console.log("📁 Arquivo:", selectedFile);
-  console.log("🌐 URL:", `${API_BASE_URL}/classify-file`);
-  console.log("🔑 API_BASE_URL:", API_BASE_URL);
-
   if (!selectedFile) {
     console.error("❌ Nenhum arquivo selecionado!");
     throw new Error("Nenhum arquivo selecionado");
@@ -332,17 +267,11 @@ async function classifyFile() {
   const formData = new FormData();
   formData.append("file", selectedFile);
 
-  console.log("📋 FormData criado, enviando requisição...");
-  console.log("📋 FormData entries:", Array.from(formData.entries()));
-
   try {
     const response = await fetch(`${API_BASE_URL}/classify-file`, {
       method: "POST",
       body: formData,
     });
-
-    console.log("📡 Resposta recebida:", response.status, response.statusText);
-    console.log("📡 Response headers:", response.headers);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -351,7 +280,6 @@ async function classifyFile() {
     }
 
     const result = await response.json();
-    console.log("✅ Resultado processado:", result);
     return result;
   } catch (error) {
     console.error("❌ Erro na requisição:", error);
@@ -532,14 +460,9 @@ document.addEventListener("keydown", function (e) {
 
 // Test function for debugging
 window.testAPI = async function () {
-  console.log("🧪 Testando API...");
-  console.log("🌐 URL:", `${API_BASE_URL}/health`);
-  console.log("🔑 API_BASE_URL:", API_BASE_URL);
   try {
     const response = await fetch(`${API_BASE_URL}/health`);
-    console.log("📡 Resposta:", response.status, response.statusText);
     const data = await response.json();
-    console.log("📋 Dados:", data);
     alert(`API Status: ${response.status} - ${JSON.stringify(data)}`);
   } catch (error) {
     console.error("❌ Erro:", error);

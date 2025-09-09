@@ -95,8 +95,6 @@ class AuthService {
   async getCurrentUser() {
     if (this.currentUser) {
       const token = await this.currentUser.getIdToken();
-      console.log("🔑 Token obtido:", token.substring(0, 20) + "...");
-      console.log("👤 Usuário Firebase:", this.currentUser.email);
       return {
         user: {
           uid: this.currentUser.uid,
@@ -107,7 +105,6 @@ class AuthService {
         token: token,
       };
     }
-    console.log("❌ Nenhum usuário atual");
     return null;
   }
 
@@ -144,12 +141,6 @@ class AuthService {
         throw new Error("Usuário não autenticado");
       }
 
-      console.log(
-        "🔑 Token para Gmail connect:",
-        userData.token.substring(0, 20) + "..."
-      );
-      console.log("👤 Usuário atual:", userData.user.email);
-
       // Obter a URL de autorização do backend
       const response = await fetch(
         `${window.CONFIG.API_BASE_URL}/gmail/auth-url`,
@@ -168,8 +159,6 @@ class AuthService {
 
       const data = await response.json();
       const authUrl = data.auth_url;
-
-      console.log("🔗 URL de autorização:", authUrl);
 
       // Redirecionar o usuário para a URL de autorização do Google
       window.location.href = authUrl;

@@ -42,8 +42,6 @@ firebaseScript.onload = () => {
       onAuthStateChanged: (auth, callback) =>
         firebase.auth().onAuthStateChanged(callback),
     };
-
-    console.log("✅ Firebase carregado via CDN compatível");
   };
   document.head.appendChild(authScript);
 };

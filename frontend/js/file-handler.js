@@ -34,22 +34,16 @@ const FileHandler = {
     // Clear text input
     window.DOM.emailText.value = "";
 
-    console.log("✅ Arquivo processado com sucesso");
-    console.log("📁 selectedFile após processamento:", this.selectedFile);
-    console.log("📁 selectedFile !== null:", this.selectedFile !== null);
-
     // Validar formulário após processar arquivo
     const isValid = window.Validation.validateForm(
       this.selectedFile,
       window.DOM.emailText
     );
     window.Validation.updateButtonState(isValid);
-    console.log("🔍 Validação após processar arquivo:", isValid);
   },
 
   // Remover arquivo
   removeFile() {
-    console.log("🗑️ Removendo arquivo...");
     this.selectedFile = null;
     window.DOM.emailFile.value = "";
 
@@ -58,7 +52,6 @@ const FileHandler = {
     fileUploadArea.style.display = "block";
     fileInfo.style.display = "none";
 
-    console.log("✅ Arquivo removido");
     const isValid = window.Validation.validateForm(
       this.selectedFile,
       window.DOM.emailText
@@ -68,10 +61,7 @@ const FileHandler = {
 
   // Manipular seleção de arquivo
   handleFileSelect(event) {
-    console.log("📁 handleFileSelect chamado");
-    console.log("📁 event.target.files:", event.target.files);
     const file = event.target.files[0];
-    console.log("📁 Arquivo selecionado:", file);
     if (file) {
       console.log("📁 Chamando processSelectedFile...");
       this.processSelectedFile(file);
@@ -94,27 +84,21 @@ const FileHandler = {
 
   // Manipular drop
   handleDrop(event) {
-    console.log("📁 handleDrop chamado");
     event.preventDefault();
     window.DOM.fileUploadArea.classList.remove("dragover");
 
     const files = event.dataTransfer.files;
-    console.log("📁 Arquivos no drop:", files);
     if (files.length > 0) {
       const file = files[0];
-      console.log("📁 Arquivo do drop:", file);
       if (window.Validation.isValidFileType(file)) {
-        console.log("📁 Arquivo válido, chamando processSelectedFile...");
         this.processSelectedFile(file);
       } else {
-        console.log("❌ Arquivo inválido");
         window.UI.showToast(
           "Tipo de arquivo não suportado. Use apenas .txt ou .pdf",
           "error"
         );
       }
     } else {
-      console.log("❌ Nenhum arquivo no drop");
     }
   },
 };

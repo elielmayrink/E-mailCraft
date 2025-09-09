@@ -1,5 +1,5 @@
 // Elementos DOM
-console.log("🏗️ Carregando dom.js...");
+
 const DOM = {
   // Form elements
   emailText: null,
@@ -31,20 +31,6 @@ const DOM = {
     this.toastContainer = document.getElementById("toastContainer");
     this.gmailAuthBtn = document.getElementById("gmailAuthBtn");
     this.gmailRefreshBtn = document.getElementById("gmailRefreshBtn");
-
-    console.log("🔍 Verificando elementos DOM:");
-    console.log("📝 emailText:", this.emailText);
-    console.log("📁 emailFile:", this.emailFile);
-    console.log("🔘 classifyBtn:", this.classifyBtn);
-    console.log("📤 fileUploadArea:", this.fileUploadArea);
-    console.log("📋 fileInfo:", this.fileInfo);
-    console.log("📊 resultsSection:", this.resultsSection);
-    console.log("⏳ loadingOverlay:", this.loadingOverlay);
-    console.log("🔔 toastContainer:", this.toastContainer);
-    console.log("📧 gmailAuthBtn:", this.gmailAuthBtn);
-    console.log("📧 gmailRefreshBtn:", this.gmailRefreshBtn);
-
-    console.log("✅ Elementos DOM inicializados");
   },
 
   // Get file info elements

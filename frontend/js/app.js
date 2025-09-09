@@ -2,8 +2,6 @@
 const App = {
   // Inicializar aplicação
   async init() {
-    console.log("🚀 Inicializando aplicação...");
-
     // Inicializar DOM
     window.DOM.init();
 
@@ -15,8 +13,6 @@ const App = {
 
     // Verificar status da API
     window.API.checkStatus();
-
-    console.log("✅ Aplicação inicializada");
   },
 
   // Aguardar Firebase estar carregado
@@ -28,14 +24,8 @@ const App = {
           typeof window.authService !== "undefined" &&
           typeof window.authComponents !== "undefined"
         ) {
-          console.log("✅ Firebase e serviços de autenticação carregados");
           resolve();
         } else {
-          console.log("⏳ Aguardando Firebase...", {
-            firebaseAuth: typeof window.firebaseAuth !== "undefined",
-            authService: typeof window.authService !== "undefined",
-            authComponents: typeof window.authComponents !== "undefined",
-          });
           setTimeout(checkFirebase, 100);
         }
       };
@@ -45,15 +35,12 @@ const App = {
 
   // Inicializar event listeners
   initializeEventListeners() {
-    console.log("🔧 Inicializando event listeners...");
-
     const { emailFile, fileUploadArea, classifyBtn, emailText } = window.DOM;
 
     // File upload events
     emailFile.addEventListener("change", (e) =>
       window.FileHandler.handleFileSelect(e)
     );
-    console.log("✅ Event listener para emailFile adicionado");
 
     // Select file button
     const selectFileBtn = document.getElementById("selectFileBtn");
@@ -61,7 +48,6 @@ const App = {
       selectFileBtn.addEventListener("click", () => {
         emailFile.click();
       });
-      console.log("✅ Event listener para selectFileBtn adicionado");
     }
 
     // Drag and drop events
@@ -74,16 +60,13 @@ const App = {
     fileUploadArea.addEventListener("drop", (e) =>
       window.FileHandler.handleDrop(e)
     );
-    console.log("✅ Event listeners para drag and drop adicionados");
 
     // Form validation
     emailText.addEventListener("input", () => this.validateForm());
     emailFile.addEventListener("change", () => this.validateForm());
-    console.log("✅ Event listeners para validação adicionados");
 
     // Classify button
     classifyBtn.addEventListener("click", () => this.classifyEmail());
-    console.log("✅ Event listener para classifyBtn adicionado");
 
     // Enter key para classificar
     emailText.addEventListener("keydown", (e) => {
@@ -91,9 +74,6 @@ const App = {
         this.classifyEmail();
       }
     });
-    console.log("✅ Event listener para keyboard shortcuts adicionado");
-
-    console.log("✅ Todos os event listeners inicializados");
 
     // Gmail buttons
     if (window.DOM.gmailAuthBtn) {
@@ -177,18 +157,12 @@ const App = {
 
   // Classificar email
   async classifyEmail() {
-    console.log("🔍 Iniciando classificação...");
-    console.log("📁 Arquivo selecionado:", window.FileHandler.selectedFile);
-    console.log("📝 Texto:", window.DOM.emailText.value.trim());
-
     // Validar formulário
     const isValid = window.Validation.validateForm(
       window.FileHandler.selectedFile,
       window.DOM.emailText
     );
-    console.log("🔍 Validação retornou:", isValid);
     if (!isValid) {
-      console.log("❌ Formulário inválido, mostrando toast");
       window.UI.showToast(
         "Por favor, insira um texto ou selecione um arquivo",
         "warning"
@@ -202,21 +176,15 @@ const App = {
       let response;
 
       if (window.FileHandler.selectedFile) {
-        console.log(
-          "📤 Fazendo upload do arquivo:",
-          window.FileHandler.selectedFile.name
-        );
         // Upload file
         response = await window.API.classifyFile(
           window.FileHandler.selectedFile
         );
       } else {
-        console.log("📝 Classificando texto");
         // Classify text
         response = await window.API.classifyText(window.DOM.emailText.value);
       }
 
-      console.log("✅ Resposta recebida:", response);
       window.UI.hideLoading();
       window.UI.displayResults(response);
     } catch (error) {
@@ -232,7 +200,6 @@ const App = {
 
 // Inicializar aplicação quando DOM estiver pronto
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("🚀 DOM carregado, inicializando aplicação...");
   App.init();
 });
 

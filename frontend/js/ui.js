@@ -1,12 +1,10 @@
 // Interface do usuário
-console.log("🎨 Carregando ui.js...");
 const UI = {
   // Mostrar loading
   showLoading(message = "Carregando...") {
     const { loadingOverlay } = window.DOM;
 
     if (!loadingOverlay) {
-      console.error("❌ loadingOverlay não encontrado!");
       return;
     }
 
@@ -22,7 +20,6 @@ const UI = {
     const { loadingOverlay } = window.DOM;
 
     if (!loadingOverlay) {
-      console.error("❌ loadingOverlay não encontrado!");
       return;
     }
 
@@ -85,16 +82,6 @@ const UI = {
       methodBadge,
       methodDescription,
     } = window.DOM.getResultsElements();
-
-    console.log("🎨 Exibindo resultados:", data);
-    console.log("🎨 Elementos encontrados:", {
-      categoryBadge,
-      responseText,
-      confidenceText,
-      filenameText,
-      methodBadge,
-      methodDescription,
-    });
 
     // Update category
     if (categoryBadge) {
